@@ -1,9 +1,6 @@
 <!DOCTYPE html>
 <html>
 <head>
-
-<link href="https://vjs.zencdn.net/8.5.2/video-js.css" rel="stylesheet" />
-
 <style>
 body{
 background:#111;
@@ -15,74 +12,43 @@ align-items:center;
 height:100vh;
 margin:0;
 }
-
-#loginBox, #videoBox{
-display:none;
-}
-
-input{
-padding:10px;
-font-size:16px;
-width:250px;
-}
-button{
-padding:10px 20px;
-font-size:16px;
-cursor:pointer;
-margin-top:10px;
-}
-#error{
-color:red;
-margin-top:10px;
-}
+#login,#player{display:none;}
+input{padding:10px;font-size:16px;width:250px;}
+button{padding:10px 20px;font-size:16px;margin-top:10px;}
 </style>
-
 </head>
 
 <body>
 
-<!-- PASSWORD PAGE -->
-<div id="loginBox">
+<div id="login">
 <h2>Enter Password</h2>
-<input type="password" id="password" placeholder="Password"><br>
-<button onclick="checkPassword()">Unlock</button>
-<div id="error"></div>
+<input type="password" id="pass">
+<br>
+<button onclick="unlock()">Unlock</button>
+<p id="msg" style="color:red"></p>
 </div>
 
-<!-- VIDEO PAGE -->
-<div id="videoBox">
-
-<video
-id="my-video"
-class="video-js vjs-default-skin"
-controls
-preload="auto"
+<div id="player">
+<iframe
 width="800"
 height="450"
-data-setup='{"playbackRates":[0.5,1,1.5,2]}'
->
-<source src="https://drive.google.com/uc?export=download&id=1nFZQGk00zsXHNY70IfkDyTIazJtSZlCr" type="video/mp4">
-</video>
-
+src="https://drive.google.com/file/d/1nFZQGk00zsXHNY70IfkDyTIazJtSZlCr/preview"
+allow="autoplay"
+allowfullscreen>
+</iframe>
 </div>
 
-<script src="https://vjs.zencdn.net/8.5.2/video.min.js"></script>
-
 <script>
-const correctPassword = "1234";   // 🔐 CHANGE PASSWORD HERE
+const PASSWORD="1234"; // 🔐 change password
 
-document.getElementById("loginBox").style.display="block";
+document.getElementById("login").style.display="block";
 
-function checkPassword(){
-
-const userPass = document.getElementById("password").value;
-
-if(userPass === correctPassword){
-document.getElementById("loginBox").style.display="none";
-document.getElementById("videoBox").style.display="block";
-videojs('my-video');
+function unlock(){
+if(document.getElementById("pass").value===PASSWORD){
+document.getElementById("login").style.display="none";
+document.getElementById("player").style.display="block";
 }else{
-document.getElementById("error").innerText="Wrong password!";
+document.getElementById("msg").innerText="Wrong password";
 }
 }
 </script>
