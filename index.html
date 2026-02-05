@@ -1,1 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
 
+<link href="https://vjs.zencdn.net/8.5.2/video-js.css" rel="stylesheet" />
+
+<style>
+body{
+background:#111;
+color:white;
+font-family:Arial;
+}
+
+#playlist div{
+cursor:pointer;
+padding:10px;
+border-bottom:1px solid #444;
+}
+#playlist div:hover{
+background:#333;
+}
+</style>
+
+</head>
+
+<body>
+
+<h2>My GDrive Video Player</h2>
+
+<video
+id="my-video"
+class="video-js vjs-default-skin"
+controls
+preload="auto"
+width="800"
+height="450"
+data-setup='{"playbackRates":[0.5,1,1.5,2]}'
+> 
+<sourceid="video-source" src="" type="video/mp4">
+</video>
+
+<h3>Playlist</h3>
+<div id="playlist"></div>
+
+<script src="https://vjs.zencdn.net/8.5.2/video.min.js"></script>
+
+<script>
+
+var player = videojs('my-video');
+
+var videos = [
+
+{
+name:"Video 1",
+url:"https://drive.google.com/file/d/1TY_mVX8jIhTewkHJNVxbGOOQou5lr1Lk/view?usp=drivesdk"
+},
+
+{
+name:"Video 2",
+url:"https://drive.google.com/file/d/1wWxqDu-i7MGaPcmcSTTfdfXCYOfiSQqW/view?usp=drivesdk"
+}
+
+];
+
+var playlist = document.getElementById("playlist");
+
+videos.forEach((v,i)=>{
+
+var div=document.createElement("div");
+div.innerText=v.name;
+
+div.onclick=function(){
+player.src({type:"video/mp4",src:v.url});
+player.play();
+};
+
+playlist.appendChild(div);
+
+});
+
+</script>
+
+</body>
+</html>
