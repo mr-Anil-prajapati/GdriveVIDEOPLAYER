@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Switchable VR/Normal Player with Previews</title>
+<title>Ultimate Player: VR/Normal + ZOOM</title>
 
 <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
 <link href="https://unpkg.com/videojs-vr/dist/videojs-vr.css" rel="stylesheet">
@@ -27,7 +27,7 @@
     position: relative;
     background: #000;
     border-radius: 8px;
-    overflow: hidden;
+    overflow: hidden; /* Important: Hides the zoomed-out parts */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -39,6 +39,13 @@
     height: 100% !important; 
   }
 
+  /* The actual video/canvas element inside Video.js */
+  /* We will target this class for zooming so the controls don't get zoomed */
+  .vjs-tech {
+    transition: transform 0.2s ease-out; /* Smooth zoom effect */
+    transform-origin: center center;
+  }
+
   /* Controls Bar */
   .controls-bar {
     margin-top: 15px;
@@ -48,6 +55,7 @@
     background: #222;
     padding: 10px;
     border-radius: 8px;
+    flex-wrap: wrap; /* Allows wrapping on small screens */
   }
 
   button { 
@@ -62,9 +70,12 @@
   }
   button:hover { background: #ff0000; }
   
-  /* Mode Switch Button Color */
-  #modeBtn { background: #0066cc; }
+  /* Color Coding Buttons */
+  #modeBtn { background: #0066cc; } /* Blue */
   #modeBtn:hover { background: #0088ff; }
+
+  .zoom-btn { background: #444; font-size: 16px; width: 40px; } /* Grey */
+  .zoom-btn:hover { background: #666; }
 
   /* Sidebar */
   .sidebar { 
@@ -73,7 +84,7 @@
     overflow-y: auto; 
     padding: 10px; 
     border-left: 1px solid #333; 
-    min-width: 300px; /* Wider sidebar for better previews */
+    min-width: 300px; 
   }
   
   .search-bar { 
@@ -102,14 +113,13 @@
   .video-item:hover { background: #2a2a2a; border-color: #555; }
   .video-item.active { border: 2px solid #cc0000; background: #222; }
   
-  /* Preview Video Styling */
   .video-item video { 
     width: 100%; 
-    height: 160px; /* Fixed height for consistency */
-    object-fit: cover; /* Crops to fill the box neatly */
+    height: 160px; 
+    object-fit: cover; 
     border-radius: 6px; 
     background: #000; 
-    pointer-events: none; /* Prevents clicking the video controls */
+    pointer-events: none; 
   }
 
   .video-item span { 
@@ -132,7 +142,11 @@
     
     <div class="controls-bar">
       <button id="nextBtn">Next ▶</button>
-      <button id="modeBtn">🔄 Switch Mode (Currently: VR)</button>
+      
+      <button class="zoom-btn" id="zoomOutBtn">➖</button>
+      <button class="zoom-btn" id="zoomInBtn">➕</button>
+      
+      <button id="modeBtn">🔄 Switch Mode</button>
       <button id="loadBtn">📁 Load Folder</button>
       <input type="file" id="folderPicker" webkitdirectory directory multiple accept="video/mp4" style="display:none;">
     </div>
@@ -151,38 +165,66 @@
 <script>
 // --- Variables ---
 let player = null;
-let isVR = true; // Default start mode
+let isVR = true; 
 let files = [];
 let currentIndex = 0;
 let currentUrl = null;
+
+// Zoom Variables
+let currentZoom = 1.0; 
+const ZOOM_STEP = 0.2;
+const MAX_ZOOM = 4.0;
+const MIN_ZOOM = 1.0;
 
 const playlistContainer = document.getElementById("playlist");
 const folderPicker = document.getElementById("folderPicker");
 const modeBtn = document.getElementById("modeBtn");
 const videoContainer = document.getElementById("video-container");
 
-// --- 1. Player Initialization Logic ---
+// --- 1. Zoom Logic ---
+function applyZoom() {
+  // We target .vjs-tech because it is the class video.js gives to the <video> or <canvas> element
+  const tech = document.querySelector('.vjs-tech');
+  if(tech) {
+    tech.style.transform = `scale(${currentZoom})`;
+  }
+}
+
+document.getElementById("zoomInBtn").addEventListener("click", () => {
+  if (currentZoom < MAX_ZOOM) {
+    currentZoom += ZOOM_STEP;
+    applyZoom();
+  }
+});
+
+document.getElementById("zoomOutBtn").addEventListener("click", () => {
+  if (currentZoom > MIN_ZOOM) {
+    currentZoom -= ZOOM_STEP;
+    applyZoom();
+  }
+});
+
+
+// --- 2. Player Initialization Logic ---
 function initPlayer(url, time = 0) {
-  // If player exists, destroy it first
   if (player) {
     player.dispose();
     player = null;
   }
 
-  // Inject fresh HTML for the video tag
+  // Inject fresh HTML
   videoContainer.innerHTML = `
     <video id="player" class="video-js vjs-default-skin vjs-big-play-centered" controls crossorigin="anonymous" playsinline></video>
   `;
 
-  // Initialize Video.js
   player = videojs('player');
 
-  // Apply VR only if the flag is true
+  // Apply Mode
   if (isVR) {
     player.vr({ projection: '360', motionControls: true });
-    modeBtn.textContent = "🔄 Switch to Normal Mode";
+    modeBtn.textContent = "🔄 Switch to Normal";
   } else {
-    modeBtn.textContent = "🔄 Switch to 360 VR Mode";
+    modeBtn.textContent = "🔄 Switch to 360 VR";
   }
 
   // Load content
@@ -192,74 +234,63 @@ function initPlayer(url, time = 0) {
     player.play().catch(()=>{});
   }
 
-  // Add event for auto-next
+  // Re-apply zoom immediately after player is ready (in case we switched modes)
+  player.ready(() => {
+    setTimeout(applyZoom, 100); // Small delay to ensure element exists
+  });
+
   player.on('ended', () => {
     currentIndex = (currentIndex + 1) % files.length;
     playVideo(currentIndex);
   });
 }
 
-// Initial setup (Empty player)
+// Initial setup
 initPlayer(null);
 
-// --- 2. Switch Mode Button Logic ---
+// --- 3. Switch Mode Logic ---
 modeBtn.addEventListener("click", () => {
   isVR = !isVR; 
-  
-  // Capture current time to resume playback seamlessly
   let currentTime = 0;
   if(player) currentTime = player.currentTime();
-
-  // Re-initialize player with new mode
+  
+  // Note: We keep the currentZoom level! It doesn't reset.
   initPlayer(currentUrl, currentTime);
 });
 
-// --- 3. Folder Loading & Playlist ---
+// --- 4. Folder Loading & Sidebar ---
 document.getElementById("loadBtn").addEventListener("click", () => folderPicker.click());
 
 folderPicker.addEventListener("change", (e) => {
   files = Array.from(e.target.files).filter(f => f.type.startsWith('video/'));
   if (files.length === 0) return alert("No video files found!");
-  
   loadSidebar();
   playVideo(0);
 });
 
 function loadSidebar() {
   playlistContainer.innerHTML = "";
-  
   files.forEach((file, i) => {
     const item = document.createElement("div");
     item.className = "video-item";
     
-    // 1. Create Preview Video Element
+    // Preview
     const previewVid = document.createElement("video");
     previewVid.src = URL.createObjectURL(file);
-    previewVid.muted = true; // Mute previews
-    previewVid.loop = true;  // Loop previews
+    previewVid.muted = true; 
+    previewVid.loop = true;  
     
-    // Hover Effects: Play on hover, Pause on leave
-    item.addEventListener("mouseenter", () => {
-        previewVid.play().catch(()=>{}); 
-    });
-    item.addEventListener("mouseleave", () => {
-        previewVid.pause();
-        previewVid.currentTime = 0; // Reset preview to start
-    });
+    item.addEventListener("mouseenter", () => { previewVid.play().catch(()=>{}); });
+    item.addEventListener("mouseleave", () => { previewVid.pause(); previewVid.currentTime = 0; });
 
-    // 2. Create Label
     const label = document.createElement("span");
     label.textContent = (i+1) + ". " + file.name;
     
-    // 3. Assemble Item
     item.appendChild(previewVid);
     item.appendChild(label);
     playlistContainer.appendChild(item);
-
-    // 4. Click to Play Main Video
     item.addEventListener("click", () => playVideo(i));
   });
-  
   highlightActive(0);
 }
 
@@ -269,12 +300,13 @@ function playVideo(i) {
   highlightActive(i);
 
   const file = files[i];
-  currentUrl = URL.createObjectURL(file); // Update global URL
+  currentUrl = URL.createObjectURL(file);
 
-  // If player exists, just change src (don't rebuild player unless switching modes)
   if (player) {
     player.src({ src: currentUrl, type: file.type });
     player.play().catch(()=>{});
+    // Re-apply zoom on new video load
+    setTimeout(applyZoom, 100);
   } else {
     initPlayer(currentUrl);
   }
@@ -286,7 +318,7 @@ function highlightActive(i) {
   });
 }
 
-// --- 4. Search & Next Button ---
+// --- 5. Search & Next ---
 document.getElementById("nextBtn").addEventListener("click", () => {
   if(files.length > 0) {
     currentIndex = (currentIndex + 1) % files.length;
