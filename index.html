@@ -2,11 +2,8 @@
 <html>
 <head>
 
-<!-- VideoJS CSS -->
-<link href="https://vjs.zencdn.net/7.21.1/video-js.css" rel="stylesheet" />
-
-<!-- VR plugin CSS -->
-<link href="https://unpkg.com/videojs-vr@1.10.0/dist/videojs-vr.css" rel="stylesheet">
+<link href="https://vjs.zencdn.net/7.21.1/video-js.css" rel="stylesheet"/>
+<link href="https://unpkg.com/videojs-vr@1.10.0/dist/videojs-vr.css" rel="stylesheet"/>
 
 </head>
 
@@ -21,23 +18,47 @@
        controls
        width="800"
        playsinline
-       webkit-playsinline
-       preload="auto">
+       webkit-playsinline>
 </video>
 
-<!-- VideoJS (version 7 for VR compatibility) -->
 <script src="https://vjs.zencdn.net/7.21.1/video.min.js"></script>
-
-<!-- AFRAME (required for VR) -->
 <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-
-<!-- videojs VR plugin -->
 <script src="https://unpkg.com/videojs-vr@1.10.0/dist/videojs-vr.min.js"></script>
 
 <script>
 
 var player = videojs('player');
 
+// ⭐ CREATE CUSTOM VR BUTTON
+var Button = videojs.getComponent('Button');
+
+var VRButton = videojs.extend(Button, {
+
+  constructor: function(player, options) {
+    Button.apply(this, arguments);
+    this.controlText("VR Mode");
+    this.addClass('vjs-icon-cog'); // icon style
+  },
+
+  handleClick: function() {
+
+    if(player.vr()) {
+        player.vr().togglePlay(); // toggle VR view
+    }
+
+  }
+
+});
+
+videojs.registerComponent('VRButton', VRButton);
+
+// Add button to control bar
+player.ready(function(){
+   player.controlBar.addChild('VRButton', {});
+});
+
+
+// Upload video
 document.getElementById('videoUpload').addEventListener('change', function(e){
 
   const file = e.target.files[0];
@@ -50,16 +71,12 @@ document.getElementById('videoUpload').addEventListener('change', function(e){
     type:"video/mp4"
   });
 
-  // initialize VR after video loads
   player.one('loadedmetadata', function(){
 
       player.vr({
           projection:'360',
-          motionControls:true,
-          ui:true   // ⭐ shows VR icon button
+          motionControls:true
       });
-
-      player.play();
 
   });
 
