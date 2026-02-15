@@ -1,56 +1,56 @@
 <!DOCTYPE html>
 <html>
 <head>
-<style>
-body{
-background:#111;
-color:white;
-font-family:Arial;
-display:flex;
-justify-content:center;
-align-items:center;
-height:100vh;
-margin:0;
-}
-#login,#player{display:none;}
-input{padding:10px;font-size:16px;width:250px;}
-button{padding:10px 20px;font-size:16px;margin-top:10px;}
-</style>
+  <meta charset="UTF-8">
+  <title>Video.js Local Upload Player</title>
+
+  <!-- Video.js CSS -->
+  <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+
 </head>
 
 <body>
 
-<div id="login">
-<h2>Enter Password</h2>
-<input type="password" id="pass">
-<br>
-<button onclick="unlock()">Unlock</button>
-<p id="msg" style="color:red"></p>
-</div>
+<h2>Upload Video and Play</h2>
 
-<div id="player">
-<iframe
-width="800"
-height="450"
-src="https://drive.google.com/file/d/1eiclMj2CN2MUTYgOUsYn3UXOF4kV0TlF/preview"
-allow="autoplay"
-allowfullscreen>
-</iframe>
-</div>
+<!-- Upload button -->
+<input type="file" id="videoUpload" accept="video/*">
+
+<br><br>
+
+<!-- Video Player -->
+<video
+  id="my-video"
+  class="video-js vjs-default-skin"
+  controls
+  preload="auto"
+  width="640"
+  height="360">
+</video>
+
+<!-- Video.js Script -->
+<script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
 
 <script>
-const PASSWORD="1234"; // 🔐 change password
+  // Initialize player
+  var player = videojs('my-video');
 
-document.getElementById("login").style.display="block";
+  // Upload event
+  document.getElementById('videoUpload').addEventListener('change', function(event) {
 
-function unlock(){
-if(document.getElementById("pass").value===PASSWORD){
-document.getElementById("login").style.display="none";
-document.getElementById("player").style.display="block";
-}else{
-document.getElementById("msg").innerText="Wrong password";
-}
-}
+    var file = event.target.files[0];
+
+    if(file) {
+      var videoURL = URL.createObjectURL(file);
+
+      player.src({
+        src: videoURL,
+        type: file.type
+      });
+
+      player.play();
+    }
+  });
 </script>
 
 </body>
