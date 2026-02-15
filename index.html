@@ -13,7 +13,6 @@
 
 <br><br>
 
-<!-- Added playsinline + preload -->
 <video id="player"
        class="video-js vjs-default-skin"
        controls
@@ -44,27 +43,15 @@ document.getElementById('videoUpload').addEventListener('change', function(e){
     type:file.type
   });
 
-  // Initialize VR AFTER source load
-  player.vr({
-    projection:'360',
-    motionControls:true,
-    debug:false,
-    forceCardboard:false
+  // IMPORTANT: initialize VR AFTER metadata loaded
+  player.one('loadedmetadata', function(){
+
+      player.vr({
+        projection:'360',
+        motionControls:true
+      });
+
   });
-
-  // Add VR switch button in control bar
-  if (!player.controlBar.getChild('VRSwitchButton')) {
-    player.controlBar.addChild('VRSwitchButton');
-  }
-
-  // Mobile gyro permission (important for phone)
-  if (typeof DeviceMotionEvent !== 'undefined' &&
-      typeof DeviceMotionEvent.requestPermission === 'function') {
-      DeviceMotionEvent.requestPermission().catch(()=>{});
-  }
-
-  // autoplay attempt (needed sometimes for gyro activation)
-  player.play().catch(()=>{});
 
 });
 
