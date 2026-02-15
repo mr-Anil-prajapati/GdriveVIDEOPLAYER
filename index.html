@@ -2,51 +2,18 @@
 <html>
 <head>
 
-<meta charset="UTF-8">
-
-<link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet">
+<link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
 <link href="https://unpkg.com/videojs-vr/dist/videojs-vr.css" rel="stylesheet">
-
-<style>
-
-body { margin:0; background:#111; color:white; font-family:Arial;}
-
-.container { display:flex; height:100vh; }
-
-.player { flex:3; padding:20px; }
-
-.sidebar { flex:1; background:#222; overflow:auto; padding:10px; }
-
-.video-js { width:100% !important; height:80vh !important; }
-
-button { padding:8px 16px; margin-right:10px; background:red; color:white; border:none; }
-
-.video-item { cursor:pointer; padding:5px; }
-
-</style>
 
 </head>
 
 <body>
 
-<div class="container">
-
-<div class="player">
-
-<video id="mainPlayer" class="video-js vjs-default-skin" controls playsinline></video>
+<input type="file" id="videoUpload">
 
 <br><br>
 
-<button id="vrToggle">🥽 VR OFF</button>
-<button id="nextBtn">Next ▶</button>
-<input type="file" id="folderPicker" webkitdirectory multiple style="display:none;">
-<button id="loadBtn">📁 Load Folder</button>
-
-</div>
-
-<div id="sidebar" class="sidebar"></div>
-
-</div>
+<video id="player" class="video-js vjs-default-skin" controls width="800"></video>
 
 <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
 <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
@@ -54,92 +21,35 @@ button { padding:8px 16px; margin-right:10px; background:red; color:white; borde
 
 <script>
 
-const player = videojs('mainPlayer');
+var player = videojs('player');
 
-let vrEnabled=false;
-let vrPlugin=null;
+player.ready(function(){
 
-function applyVR(){
-
-  if(vrPlugin){
-    vrPlugin.reset();
-    vrPlugin=null;
-  }
-
-  if(vrEnabled){
-
-    vrPlugin = player.vr({
-      projection:'360',
-      motionControls:true
-    });
-
-  }
-
-}
-
-document.getElementById("vrToggle").onclick=function(){
-
-  vrEnabled=!vrEnabled;
-
-  this.textContent = vrEnabled ? "🥽 VR ON" : "🥽 VR OFF";
-
-  applyVR();
-
-};
-
-const sidebar=document.getElementById("sidebar");
-const folderPicker=document.getElementById("folderPicker");
-
-let files=[];
-let currentIndex=0;
-
-document.getElementById("loadBtn").onclick=()=>folderPicker.click();
-
-folderPicker.addEventListener("change", e=>{
-
-  files=Array.from(e.target.files).filter(f=>f.type.startsWith("video"));
-
-  sidebar.innerHTML="";
-
-  files.forEach((file,i)=>{
-
-    const div=document.createElement("div");
-    div.className="video-item";
-    div.textContent=file.name;
-    div.onclick=()=>playVideo(i);
-
-    sidebar.appendChild(div);
-
+  // Initialize VR
+  player.vr({
+    projection:'360',
+    motionControls:true
   });
-
-  playVideo(0);
 
 });
 
-function playVideo(i){
+// Upload video
+document.getElementById('videoUpload').addEventListener('change', function(e){
 
-  currentIndex=i;
+  const file = e.target.files[0];
+  if(!file) return;
+
+  const url = URL.createObjectURL(file);
 
   player.src({
-    src:URL.createObjectURL(files[i]),
-    type:files[i].type
+    src:url,
+    type:file.type
   });
 
-  player.ready(()=>{
+  // REQUIRED for mobile gyro activation
+  player.play().catch(()=>{});
 
-    applyVR();   // IMPORTANT: reapply VR after source load
-    player.play().catch(()=>{});
-
-  });
-
-}
-
-document.getElementById("nextBtn").onclick=()=>{
-
-  currentIndex=(currentIndex+1)%files.length;
-  playVideo(currentIndex);
-
-};
+});
 
 </script>
 
