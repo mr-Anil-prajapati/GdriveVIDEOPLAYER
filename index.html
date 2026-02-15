@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Switchable VR/Normal Player</title>
+<title>Switchable VR/Normal Player with Previews</title>
 
 <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
 <link href="https://unpkg.com/videojs-vr/dist/videojs-vr.css" rel="stylesheet">
@@ -21,16 +21,19 @@
     background: #000;
   }
 
-  /* Container for the video element (Needed for resetting) */
+  /* Container for the video element */
   #video-container {
-    flex: 1; /* Fills remaining space */
+    flex: 1; 
     position: relative;
     background: #000;
     border-radius: 8px;
     overflow: hidden;
-    min-height: 0; /* Important for Flexbox scrolling */
+    display: flex;
+    justify-content: center;
+    align-items: center;
   }
 
+  /* Force Video.js to fill space */
   .video-js {
     width: 100% !important;
     height: 100% !important; 
@@ -42,6 +45,9 @@
     display: flex;
     align-items: center;
     gap: 10px;
+    background: #222;
+    padding: 10px;
+    border-radius: 8px;
   }
 
   button { 
@@ -56,20 +62,64 @@
   }
   button:hover { background: #ff0000; }
   
-  /* Specific style for the Switch button to distinguish it */
+  /* Mode Switch Button Color */
   #modeBtn { background: #0066cc; }
   #modeBtn:hover { background: #0088ff; }
 
   /* Sidebar */
-  .sidebar { flex: 1; background: #1f1f1f; overflow-y: auto; padding: 10px; border-left: 1px solid #333; min-width: 250px; }
+  .sidebar { 
+    flex: 1; 
+    background: #1f1f1f; 
+    overflow-y: auto; 
+    padding: 10px; 
+    border-left: 1px solid #333; 
+    min-width: 300px; /* Wider sidebar for better previews */
+  }
   
-  .search-bar { width: 90%; padding: 10px; border-radius: 4px; background: #121212; color: #fff; border: 1px solid #333; margin-bottom: 15px; }
+  .search-bar { 
+    width: 95%; 
+    padding: 10px; 
+    border-radius: 4px; 
+    background: #121212; 
+    color: #fff; 
+    border: 1px solid #333; 
+    margin-bottom: 15px; 
+  }
   
-  .video-item { display: flex; flex-direction: column; margin-bottom: 15px; cursor: pointer; padding: 8px; border-radius: 6px; background: #121212; transition: 0.2s; }
-  .video-item:hover { background: #2a2a2a; }
+  /* Sidebar Video Item */
+  .video-item { 
+    display: flex; 
+    flex-direction: column; 
+    margin-bottom: 20px; 
+    cursor: pointer; 
+    padding: 10px; 
+    border-radius: 8px; 
+    background: #121212; 
+    transition: 0.2s; 
+    border: 1px solid #333;
+  }
+  
+  .video-item:hover { background: #2a2a2a; border-color: #555; }
   .video-item.active { border: 2px solid #cc0000; background: #222; }
   
-  .video-item span { display: block; margin-top: 8px; font-size: 14px; color: #ddd; }
+  /* Preview Video Styling */
+  .video-item video { 
+    width: 100%; 
+    height: 160px; /* Fixed height for consistency */
+    object-fit: cover; /* Crops to fill the box neatly */
+    border-radius: 6px; 
+    background: #000; 
+    pointer-events: none; /* Prevents clicking the video controls */
+  }
+
+  .video-item span { 
+    display: block; 
+    margin-top: 8px; 
+    font-size: 14px; 
+    color: #eee; 
+    font-weight: bold;
+    word-break: break-word;
+  }
 </style>
 </head>
 <body>
@@ -82,7 +132,8 @@
     
     <div class="controls-bar">
       <button id="nextBtn">Next ▶</button>
-      <button id="modeBtn">🔄 Switch to Normal</button> <button id="loadBtn">📁 Load Folder</button>
+      <button id="modeBtn">🔄 Switch Mode (Currently: VR)</button>
+      <button id="loadBtn">📁 Load Folder</button>
       <input type="file" id="folderPicker" webkitdirectory directory multiple accept="video/mp4" style="display:none;">
     </div>
   </div>
@@ -129,6 +180,9 @@ function initPlayer(url, time = 0) {
   // Apply VR only if the flag is true
   if (isVR) {
     player.vr({ projection: '360', motionControls: true });
+    modeBtn.textContent = "🔄 Switch to Normal Mode";
+  } else {
+    modeBtn.textContent = "🔄 Switch to 360 VR Mode";
   }
 
   // Load content
@@ -150,12 +204,8 @@ initPlayer(null);
 
 // --- 2. Switch Mode Button Logic ---
 modeBtn.addEventListener("click", () => {
-  // Toggle Mode
   isVR = !isVR; 
   
-  // Update Button Text
-  modeBtn.textContent = isVR ? "🔄 Switch to Normal" : "🔄 Switch to 360 VR";
-
   // Capture current time to resume playback seamlessly
   let currentTime = 0;
   if(player) currentTime = player.currentTime();
@@ -177,19 +227,39 @@ folderPicker.addEventListener("change", (e) => {
 
 function loadSidebar() {
   playlistContainer.innerHTML = "";
+  
   files.forEach((file, i) => {
     const item = document.createElement("div");
     item.className = "video-item";
     
-    // Simple text label for performance (Video previews can lag with many files)
+    // 1. Create Preview Video Element
+    const previewVid = document.createElement("video");
+    previewVid.src = URL.createObjectURL(file);
+    previewVid.muted = true; // Mute previews
+    previewVid.loop = true;  // Loop previews
+    
+    // Hover Effects: Play on hover, Pause on leave
+    item.addEventListener("mouseenter", () => {
+        previewVid.play().catch(()=>{}); 
+    });
+    item.addEventListener("mouseleave", () => {
+        previewVid.pause();
+        previewVid.currentTime = 0; // Reset preview to start
+    });
+
+    // 2. Create Label
     const label = document.createElement("span");
     label.textContent = (i+1) + ". " + file.name;
     
+    // 3. Assemble Item
+    item.appendChild(previewVid);
     item.appendChild(label);
     playlistContainer.appendChild(item);
 
+    // 4. Click to Play Main Video
     item.addEventListener("click", () => playVideo(i));
   });
+  
   highlightActive(0);
 }
 
