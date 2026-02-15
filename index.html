@@ -2,13 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VR 360 Local Player (YouTube Style)</title>
+<title>Switchable VR/Normal Player</title>
 
 <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
 <link href="https://unpkg.com/videojs-vr/dist/videojs-vr.css" rel="stylesheet">
 
 <style>
-  /* 2. Your Interface CSS */
   body { font-family: Arial; margin: 0; background: #111; color: #fff; height: 100vh; overflow: hidden; }
   
   .container { display: flex; height: 100%; width: 100%; }
@@ -20,40 +19,57 @@
     display: flex; 
     flex-direction: column; 
     background: #000;
-    position: relative;
   }
 
-  /* Force Video.js to fill the flex container */
+  /* Container for the video element (Needed for resetting) */
+  #video-container {
+    flex: 1; /* Fills remaining space */
+    position: relative;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    min-height: 0; /* Important for Flexbox scrolling */
+  }
+
   .video-js {
     width: 100% !important;
     height: 100% !important; 
-    border-radius: 8px;
-    overflow: hidden;
   }
 
-  /* Controls Bar under video */
+  /* Controls Bar */
   .controls-bar {
     margin-top: 15px;
     display: flex;
     align-items: center;
+    gap: 10px;
   }
 
-  button { padding: 10px 20px; border: none; border-radius: 6px; background: #cc0000; color: #fff; cursor: pointer; margin-right: 10px; font-weight: bold; }
+  button { 
+    padding: 10px 15px; 
+    border: none; 
+    border-radius: 6px; 
+    background: #cc0000; 
+    color: #fff; 
+    cursor: pointer; 
+    font-weight: bold; 
+    white-space: nowrap;
+  }
   button:hover { background: #ff0000; }
   
+  /* Specific style for the Switch button to distinguish it */
+  #modeBtn { background: #0066cc; }
+  #modeBtn:hover { background: #0088ff; }
+
   /* Sidebar */
-  .sidebar { flex: 1; background: #1f1f1f; overflow-y: auto; padding: 10px; border-left: 1px solid #333; }
+  .sidebar { flex: 1; background: #1f1f1f; overflow-y: auto; padding: 10px; border-left: 1px solid #333; min-width: 250px; }
   
-  .search-bar { width: 95%; padding: 10px; border: none; border-radius: 4px; background: #121212; color: #fff; margin-bottom: 15px; border: 1px solid #333; }
+  .search-bar { width: 90%; padding: 10px; border-radius: 4px; background: #121212; color: #fff; border: 1px solid #333; margin-bottom: 15px; }
   
-  .video-item { display: flex; flex-direction: column; margin-bottom: 15px; cursor: pointer; padding: 8px; border-radius: 6px; transition: 0.2s; background: #121212; }
+  .video-item { display: flex; flex-direction: column; margin-bottom: 15px; cursor: pointer; padding: 8px; border-radius: 6px; background: #121212; transition: 0.2s; }
   .video-item:hover { background: #2a2a2a; }
   .video-item.active { border: 2px solid #cc0000; background: #222; }
   
-  /* Sidebar Previews */
-  .video-item video { width: 100%; border-radius: 4px; pointer-events: none; background: #000; }
-  .video-item span { display: block; margin-top: 8px; font-size: 14px; line-height: 1.4; color: #ddd; }
-
+  .video-item span { display: block; margin-top: 8px; font-size: 14px; color: #ddd; }
 </style>
 </head>
 <body>
@@ -61,12 +77,13 @@
 <div class="container">
   
   <div class="player-section">
-    <video id="player" class="video-js vjs-default-skin vjs-big-play-centered" controls crossorigin="anonymous" playsinline></video>
+    
+    <div id="video-container"></div>
     
     <div class="controls-bar">
       <button id="nextBtn">Next ▶</button>
+      <button id="modeBtn">🔄 Switch to Normal</button> <button id="loadBtn">📁 Load Folder</button>
       <input type="file" id="folderPicker" webkitdirectory directory multiple accept="video/mp4" style="display:none;">
-      <button id="loadBtn">📁 Load Folder</button>
     </div>
   </div>
 
@@ -81,115 +98,139 @@
 <script src="https://unpkg.com/videojs-vr/dist/videojs-vr.min.js"></script>
 
 <script>
-// 1. Initialize Video.js Player with VR
-var player = videojs('player');
-
-player.ready(function(){
-  player.vr({
-    projection: '360',
-    motionControls: true
-  });
-});
-
-// 2. Variables
-const playlistContainer = document.getElementById("playlist");
-const search = document.getElementById("search");
-const folderPicker = document.getElementById("folderPicker");
+// --- Variables ---
+let player = null;
+let isVR = true; // Default start mode
 let files = [];
 let currentIndex = 0;
+let currentUrl = null;
 
-// 3. Load Folder Logic
+const playlistContainer = document.getElementById("playlist");
+const folderPicker = document.getElementById("folderPicker");
+const modeBtn = document.getElementById("modeBtn");
+const videoContainer = document.getElementById("video-container");
+
+// --- 1. Player Initialization Logic ---
+function initPlayer(url, time = 0) {
+  // If player exists, destroy it first
+  if (player) {
+    player.dispose();
+    player = null;
+  }
+
+  // Inject fresh HTML for the video tag
+  videoContainer.innerHTML = `
+    <video id="player" class="video-js vjs-default-skin vjs-big-play-centered" controls crossorigin="anonymous" playsinline></video>
+  `;
+
+  // Initialize Video.js
+  player = videojs('player');
+
+  // Apply VR only if the flag is true
+  if (isVR) {
+    player.vr({ projection: '360', motionControls: true });
+  }
+
+  // Load content
+  if (url) {
+    player.src({ src: url, type: 'video/mp4' });
+    player.currentTime(time);
+    player.play().catch(()=>{});
+  }
+
+  // Add event for auto-next
+  player.on('ended', () => {
+    currentIndex = (currentIndex + 1) % files.length;
+    playVideo(currentIndex);
+  });
+}
+
+// Initial setup (Empty player)
+initPlayer(null);
+
+// --- 2. Switch Mode Button Logic ---
+modeBtn.addEventListener("click", () => {
+  // Toggle Mode
+  isVR = !isVR; 
+  
+  // Update Button Text
+  modeBtn.textContent = isVR ? "🔄 Switch to Normal" : "🔄 Switch to 360 VR";
+
+  // Capture current time to resume playback seamlessly
+  let currentTime = 0;
+  if(player) currentTime = player.currentTime();
+
+  // Re-initialize player with new mode
+  initPlayer(currentUrl, currentTime);
+});
+
+// --- 3. Folder Loading & Playlist ---
 document.getElementById("loadBtn").addEventListener("click", () => folderPicker.click());
 
 folderPicker.addEventListener("change", (e) => {
-  // Filter for video files
   files = Array.from(e.target.files).filter(f => f.type.startsWith('video/'));
-  
-  if (files.length === 0) return alert("No video files found in this folder!");
+  if (files.length === 0) return alert("No video files found!");
   
   loadSidebar();
   playVideo(0);
 });
 
-// 4. Create Sidebar Dynamically
 function loadSidebar() {
   playlistContainer.innerHTML = "";
-  
   files.forEach((file, i) => {
     const item = document.createElement("div");
     item.className = "video-item";
-
-    // Sidebar Preview (Standard video tag, not VR)
-    const vid = document.createElement("video");
-    vid.src = URL.createObjectURL(file);
-    vid.muted = true;
     
-    // Hover effects for preview
-    item.addEventListener("mouseenter", () => vid.play().catch(()=>{})); // Catch error if user hasn't interacted yet
-    item.addEventListener("mouseleave", () => { vid.pause(); vid.currentTime = 0; });
-    item.addEventListener("click", () => playVideo(i));
-
+    // Simple text label for performance (Video previews can lag with many files)
     const label = document.createElement("span");
-    label.textContent = file.name;
-
-    item.appendChild(vid);
+    label.textContent = (i+1) + ". " + file.name;
+    
     item.appendChild(label);
     playlistContainer.appendChild(item);
+
+    item.addEventListener("click", () => playVideo(i));
   });
-  
   highlightActive(0);
 }
 
-// 5. Play Video Function (Connected to VR Player)
 function playVideo(i) {
   if (!files[i]) return;
   currentIndex = i;
-  
-  const file = files[i];
-  const url = URL.createObjectURL(file);
-
-  // Video.js specific source loading
-  player.src({
-    src: url,
-    type: file.type
-  });
-
-  player.play().catch(()=>{}); // Auto-play
   highlightActive(i);
+
+  const file = files[i];
+  currentUrl = URL.createObjectURL(file); // Update global URL
+
+  // If player exists, just change src (don't rebuild player unless switching modes)
+  if (player) {
+    player.src({ src: currentUrl, type: file.type });
+    player.play().catch(()=>{});
+  } else {
+    initPlayer(currentUrl);
+  }
 }
 
-// 6. Highlight Active Item
 function highlightActive(i) {
   document.querySelectorAll(".video-item").forEach((el, idx) => {
     el.classList.toggle("active", idx === i);
   });
 }
 
-// 7. Next Button Logic
+// --- 4. Search & Next Button ---
 document.getElementById("nextBtn").addEventListener("click", () => {
-  currentIndex = (currentIndex + 1) % files.length;
-  playVideo(currentIndex);
+  if(files.length > 0) {
+    currentIndex = (currentIndex + 1) % files.length;
+    playVideo(currentIndex);
+  }
 });
 
-// 8. Auto-play next when video ends (Video.js Event)
-player.on('ended', () => {
-  currentIndex = (currentIndex + 1) % files.length;
-  playVideo(currentIndex);
-});
-
-// 9. Search Filter
-search.addEventListener("input", () => {
-  const term = search.value.toLowerCase();
+document.getElementById("search").addEventListener("input", (e) => {
+  const term = e.target.value.toLowerCase();
   document.querySelectorAll(".video-item").forEach(item => {
     item.style.display = item.innerText.toLowerCase().includes(term) ? "flex" : "none";
   });
 });
 
-// Resize fix for VR
-window.addEventListener('resize', () => {
-  if(player) player.fluid(true);
-});
 </script>
-
 </body>
 </html>
