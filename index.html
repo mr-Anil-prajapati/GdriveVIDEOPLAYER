@@ -13,7 +13,15 @@
 
 <br><br>
 
-<video id="player" class="video-js vjs-default-skin" controls width="800"></video>
+<!-- Added playsinline + preload -->
+<video id="player"
+       class="video-js vjs-default-skin"
+       controls
+       width="800"
+       playsinline
+       webkit-playsinline
+       preload="auto">
+</video>
 
 <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
 <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
@@ -22,16 +30,6 @@
 <script>
 
 var player = videojs('player');
-
-player.ready(function(){
-
-  // Initialize VR
-  player.vr({
-    projection:'360',
-    motionControls:true
-  });
-
-});
 
 // Upload video
 document.getElementById('videoUpload').addEventListener('change', function(e){
@@ -46,7 +44,26 @@ document.getElementById('videoUpload').addEventListener('change', function(e){
     type:file.type
   });
 
-  // REQUIRED for mobile gyro activation
+  // Initialize VR AFTER source load
+  player.vr({
+    projection:'360',
+    motionControls:true,
+    debug:false,
+    forceCardboard:false
+  });
+
+  // Add VR switch button in control bar
+  if (!player.controlBar.getChild('VRSwitchButton')) {
+    player.controlBar.addChild('VRSwitchButton');
+  }
+
+  // Mobile gyro permission (important for phone)
+  if (typeof DeviceMotionEvent !== 'undefined' &&
+      typeof DeviceMotionEvent.requestPermission === 'function') {
+      DeviceMotionEvent.requestPermission().catch(()=>{});
+  }
+
+  // autoplay attempt (needed sometimes for gyro activation)
   player.play().catch(()=>{});
 
 });
